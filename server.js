@@ -11,6 +11,8 @@ const authRoutes = require('./routes/authRoutes');
 const memberRoutes = require('./routes/memberRoutes');
 const projectRoutes = require('./routes/projectRoutes');
 const testimonialRoutes = require('./routes/testimonialRoutes');
+const enquiryRoutes = require('./routes/enquiryRoutes');
+const snapshotRoutes = require('./routes/snapshotRoutes');
 
 // Load env vars
 dotenv.config();
@@ -27,11 +29,12 @@ if (!fs.existsSync(uploadsDir)) {
 }
 
 //
-// 🔥 CORS CONFIG (IMPORTANT)
+// CORS CONFIG
 //
 app.use(cors({
   origin: [
     "http://localhost:5173",
+    "http://localhost:4173",
     "https://akconstructionbyraju.com",
     "https://www.akconstructionbyraju.com",
     "https://api.akconstructionbyraju.com"
@@ -39,9 +42,12 @@ app.use(cors({
   credentials: true,
 }));
 
+// Trust proxy for rate limiting behind Render/Vercel
+app.set('trust proxy', 1);
+
 // Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 // Static files (uploads)
 app.use('/uploads', express.static(uploadsDir));
@@ -51,10 +57,12 @@ app.use('/api/auth', authRoutes);
 app.use('/api/members', memberRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/testimonials', testimonialRoutes);
+app.use('/api/enquiries', enquiryRoutes);
+app.use('/api/snapshot', snapshotRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ success: true, message: 'Arkitektur API is running' });
+  res.json({ success: true, message: 'AK Constructions API is running', ts: Date.now() });
 });
 
 // Error handling
@@ -63,6 +71,6 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });

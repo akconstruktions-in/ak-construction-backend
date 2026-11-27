@@ -24,6 +24,12 @@ const userSchema = new mongoose.Schema({
   resetOtpExpiry: {
     type: Date,
   },
+  resetTokenHash: {
+    type: String,
+  },
+  resetTokenExpiry: {
+    type: Date,
+  },
 }, { timestamps: true });
 
 // Hash password before saving

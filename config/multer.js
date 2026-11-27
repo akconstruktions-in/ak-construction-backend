@@ -1,5 +1,6 @@
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 
 // Store in a temporary uploads folder; Cloudinary will be the final destination
 const storage = multer.diskStorage({
@@ -13,9 +14,10 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  const allowed = /jpeg|jpg|png|gif|webp/;
-  const extname = allowed.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowed.test(file.mimetype);
+  const allowedExt = /\.(jpe?g|png|gif|webp)$/i;
+  const allowedMime = /^image\/(jpeg|jpg|png|gif|webp)$/i;
+  const extname = allowedExt.test(path.extname(file.originalname));
+  const mimetype = allowedMime.test(file.mimetype);
 
   if (extname && mimetype) {
     cb(null, true);
@@ -24,10 +26,32 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
+/**
+ * Inspect magic bytes of uploaded file on disk to reject spoofed extensions.
+ */
+const verifyImageSignature = (filePath) => {
+  try {
+    const fd = fs.openSync(filePath, 'r');
+    const buf = Buffer.alloc(12);
+    fs.readSync(fd, buf, 0, 12, 0);
+    fs.closeSync(fd);
+
+    const isJpeg = buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
+    const isPng = buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47;
+    const isGif = buf.slice(0, 3).toString('ascii') === 'GIF';
+    const isWebp = buf.slice(0, 4).toString('ascii') === 'RIFF' && buf.slice(8, 12).toString('ascii') === 'WEBP';
+
+    return isJpeg || isPng || isGif || isWebp;
+  } catch {
+    return false;
+  }
+};
+
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+  limits: { fileSize: 8 * 1024 * 1024, files: 12 }, // 8 MB per file, max 12 files
 });
 
 module.exports = upload;
+module.exports.verifyImageSignature = verifyImageSignature;
